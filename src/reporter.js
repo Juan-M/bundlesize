@@ -14,14 +14,20 @@ const setBuildStatus = ({
   event: currentEvent,
   branch: currentBranch
 }) => {
-  if (fail) build.fail(globalMessage || 'bundle size > maxSize', url)
+  let finalUrl = url
+  // @TODO (JG 04/20/2020): Remove drone link when bundlesize-store.now.sh is fixed
+  if (process.env.DRONE_BUILD_LINK) {
+    finalUrl = `${process.env.DRONE_BUILD_LINK}/${process.env.DRONE_STEP_NUMBER}`
+    debug('Switched to drone url after shortening', finalUrl)
+  }
+  if (fail) build.fail(globalMessage || 'bundle size > maxSize', finalUrl)
   else {
     if (currentEvent === 'push' && currentBranch === 'master') {
       const values = []
       files.map(file => values.push({ path: file.path, size: file.size }))
       api.set(values)
     }
-    build.pass(globalMessage || 'Good job! bundle size < maxSize', url)
+    build.pass(globalMessage || 'Good job! bundle size < maxSize', finalUrl)
   }
 
   debug('global message', globalMessage)
@@ -36,37 +42,33 @@ const getGlobalMessage = ({
 }) => {
   let globalMessage
 
-  let failures = results.filter(result => !!result.fail).length
+  const failures = results.filter(result => !!result.fail)
 
+  const change = totalSize - totalSizeMaster
+  let prettyChange = ''
+  if (change === 0) {
+    prettyChange = ' (no change)'
+  } else if (change && change > 0) {
+    prettyChange = ` (+${bytes(change)})`
+  } else if (change) {
+    prettyChange = ` (-${bytes(Math.abs(change))})`
+  }
   if (results.length === 1) {
     const { message } = results[0]
     globalMessage = message
-  } else if (failures === 1) {
+  } else if (failures.length === 1) {
     // multiple files, one failure
     const result = results.find(message => message.fail)
     const { message } = result
-
     globalMessage = message
-  } else if (failures) {
+  } else if (failures.length) {
     // multiple files, multiple failures
-    const change = totalSize - totalSizeMaster
-    const prettyChange =
-      change === 0
-        ? 'no change'
-        : change > 0 ? `+${bytes(change)}` : `-${bytes(Math.abs(change))}`
-
-    globalMessage = `${failures} out of ${results.length} bundles are too big! (${prettyChange})`
+    globalMessage = `${failures.length} out of ${results.length} bundles are too big!${prettyChange}`
   } else {
     // multiple files, no failures
     const prettySize = bytes(totalSize)
     const prettyMaxSize = bytes(totalMaxSize)
-    const change = totalSize - totalSizeMaster
-    const prettyChange =
-      change === 0
-        ? 'no change'
-        : change > 0 ? `+${bytes(change)}` : `-${bytes(Math.abs(change))}`
-
-    globalMessage = `Total bundle size is ${prettySize}/${prettyMaxSize} (${prettyChange})`
+    globalMessage = `Total bundle size is ${prettySize}/${prettyMaxSize}${prettyChange}`
   }
   return globalMessage
 }
@@ -97,23 +99,23 @@ const analyse = ({ files, masterValues }) => {
     if (size > maxSize) {
       fail = true
       if (prettySize) message += `> maxSize ${prettySize} ${compressionText}`
-      error(message, { fail: false, label: 'FAIL' })
+      error(message, { fail: false, label: '🙅 FAIL' })
     } else if (!master) {
       if (prettySize) message += `< maxSize ${prettySize} ${compressionText}`
-      info('PASS', message)
+      info('✔️ PASS', message)
     } else {
       if (prettySize) message += `< maxSize ${prettySize} ${compressionText}`
       const diff = size - master
 
       if (diff < 0) {
         message += `(${bytes(Math.abs(diff))} smaller than master, good job!)`
-        info('PASS', message)
+        info('✔️ PASS', message)
       } else if (diff > 0) {
         message += `(${bytes(diff)} larger than master, careful!)`
-        warn(message)
+        warn('⚠️ ' + message)
       } else {
         message += '(same as master)'
-        info('PASS', message)
+        info('✔️ PASS', message)
       }
     }
     debug('message', message)
