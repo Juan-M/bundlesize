@@ -30,7 +30,7 @@ const setBuildStatus = ({
     build.pass(globalMessage || 'Good job! bundle size < maxSize', finalUrl)
   }
 
-  debug('global message', globalMessage)
+  info('Set build status Done: ', globalMessage)
 }
 
 // Generate global message as per https://github.com/siddharthkp/bundlesize/issues/182#issuecomment-343274689
