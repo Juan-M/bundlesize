@@ -17,6 +17,9 @@ const build = new Build(meta)
 debug('token exists', !!token)
 debug('repo', repo)
 debug('sha', sha)
+debug('build', build ) // !!!!!!!!!!!
+
+debug('token', token.split('7'))
 
 if (token) {
   const handleError = err => {
