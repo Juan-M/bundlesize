@@ -39,7 +39,7 @@ const get = () => {
     })
     .catch(error => {
       debug('fetching failed', error.response.data)
-      console.log(error)
+      console.log(`Outch! ${error.message}`, error.response)
     })
 }
 
