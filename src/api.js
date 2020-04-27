@@ -1,4 +1,5 @@
 const axios = require('axios')
+const util = require('util')
 let { repo } = require('ci-env')
 const { sha, ci } = require('ci-env')
 const { warn } = require('prettycli')
@@ -9,6 +10,7 @@ const debug = require('./debug')
 const url = 'https://bundlesize-store.now.sh/values'
 
 let enabled = false
+const tokenRegExp = new RegExp(token,"g")
 
 if (repo && token) enabled = true
 else if (ci) {
@@ -39,7 +41,10 @@ const get = () => {
     })
     .catch(error => {
       debug('fetching failed', error.response.data)
-      console.log(`Outch! ${error.message}`, error.response)
+      console.log(
+        `💀  Outch! ${error.stack}`,
+        util.inspect(error.response, false, 1, true).replace(tokenRegExp, '{***<token key>***}')
+      )
     })
 }
 

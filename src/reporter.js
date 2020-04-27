@@ -99,23 +99,23 @@ const analyse = ({ files, masterValues }) => {
     if (size > maxSize) {
       fail = true
       if (prettySize) message += `> maxSize ${prettySize} ${compressionText}`
-      error(message, { fail: false, label: '🙅 FAIL' })
+      error(message, { fail: false, label: '🙅  FAIL' })
     } else if (!master) {
       if (prettySize) message += `< maxSize ${prettySize} ${compressionText}`
-      info('✔️ PASS', message)
+      info('✔️  PASS', message)
     } else {
       if (prettySize) message += `< maxSize ${prettySize} ${compressionText}`
       const diff = size - master
 
       if (diff < 0) {
         message += `(${bytes(Math.abs(diff))} smaller than master, good job!)`
-        info('✔️ PASS', message)
+        info('✔️  PASS', message)
       } else if (diff > 0) {
         message += `(${bytes(diff)} larger than master, careful!)`
-        warn('⚠️ ' + message)
+        warn(`⚠️  ${message}`)
       } else {
         message += '(same as master)'
-        info('✔️ PASS', message)
+        info('✔️  PASS', message)
       }
     }
     debug('message', message)
