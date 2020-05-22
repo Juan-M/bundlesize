@@ -17,7 +17,8 @@ const setBuildStatus = ({
   let finalUrl = url
   // @TODO (JG 04/20/2020): Remove drone link when bundlesize-store.now.sh is fixed
   if (process.env.DRONE_BUILD_LINK) {
-    finalUrl = `${process.env.DRONE_BUILD_LINK}/${process.env.DRONE_STEP_NUMBER}`
+    const stageNumber = process.env.DRONE_SYSTEM_VERSION[0] > 0 ? `${process.env.DRONE_STAGE_NUMBER || '1'}/` : ''
+    finalUrl = `${process.env.DRONE_BUILD_LINK}/${stageNumber}${process.env.DRONE_STEP_NUMBER}`
     debug('Switched to drone url after shortening', finalUrl)
   }
   if (fail) build.fail(globalMessage || 'bundle size > maxSize', finalUrl)
