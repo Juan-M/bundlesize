@@ -6,6 +6,11 @@ const api = require('./api')
 const debug = require('./debug')
 const shortener = require('./shortener')
 
+const UPDATE_CONFIG_MSG = '⚠️  Please update bundlesize.config.json! '
+const MAX_SIZE_DELTA = 5120 // 5KB off the max size
+const MAX_SIZE_PERCENTAGE = 0.05 // 5% off the max size
+
+
 const setBuildStatus = ({
   url,
   files,
@@ -21,17 +26,19 @@ const setBuildStatus = ({
     finalUrl = `${process.env.DRONE_BUILD_LINK}/${stageNumber}${process.env.DRONE_STEP_NUMBER}`
     debug('Switched to drone url after shortening', finalUrl)
   }
-  if (fail) build.fail(globalMessage || 'bundle size > maxSize', finalUrl)
-  else {
+  if (fail) {
+    build.fail(globalMessage || 'bundle size > maxSize', finalUrl)
+    info('Set build status (🙅  FAIL): ', globalMessage)
+  } else {
     if (currentEvent === 'push' && currentBranch === 'master') {
       const values = []
       files.map(file => values.push({ path: file.path, size: file.size }))
       api.set(values)
     }
     build.pass(globalMessage || 'Good job! bundle size < maxSize', finalUrl)
+    info('Set build status: ', globalMessage)
   }
 
-  info('Set build status Done: ', globalMessage)
 }
 
 // Generate global message as per https://github.com/siddharthkp/bundlesize/issues/182#issuecomment-343274689
@@ -56,15 +63,16 @@ const getGlobalMessage = ({
   }
   if (results.length === 1) {
     const { message } = results[0]
-    globalMessage = message
+    const warnMsg = failues.length ? UPDATE_CONFIG_MSG : ''
+    globalMessage = warnMsg + message
   } else if (failures.length === 1) {
     // multiple files, one failure
     const result = results.find(message => message.fail)
     const { message } = result
-    globalMessage = message
+    globalMessage = UPDATE_CONFIG_MSG + message
   } else if (failures.length) {
     // multiple files, multiple failures
-    globalMessage = `${failures.length} out of ${results.length} bundles are too big!${prettyChange}`
+    globalMessage = `${UPDATE_CONFIG_MSG}${failures.length} out of ${results.length} bundles are too big!${prettyChange}`
   } else {
     // multiple files, no failures
     const prettySize = bytes(totalSize)
@@ -77,6 +85,7 @@ const getGlobalMessage = ({
 const analyse = ({ files, masterValues }) => {
   return files.map(file => {
     let fail = false
+    let failedTooMuch = false
     file.master = masterValues[file.path]
     const { path, size, master, maxSize, compression = 'gzip' } = file
 
@@ -98,7 +107,12 @@ const analyse = ({ files, masterValues }) => {
     */
 
     if (size > maxSize) {
+      const delta = size - maxSize;
       fail = true
+      // Only stop the queue if the failure is bigger than a given ammount and bigger than a given percentage of the max size
+      if (delta > MAX_SIZE_DELTA && delta > (maxSize * MAX_SIZE_PERCENTAGE)) {
+        failedTooMuch = true;
+      }
       if (prettySize) message += `> maxSize ${prettySize} ${compressionText}`
       error(message, { fail: false, label: '🙅  FAIL' })
     } else if (!master) {
@@ -123,6 +137,7 @@ const analyse = ({ files, masterValues }) => {
     return {
       message,
       fail,
+      failedTooMuch,
       size,
       master,
       maxSize
@@ -162,7 +177,7 @@ const compare = (files, masterValues = {}) => {
     totalMaxSize: results.reduce((acc, result) => acc + result.maxSize, 0)
   })
 
-  let fail = results.filter(result => result.fail).length > 0
+  let fail = results.filter(result => result.fail && result.failedTooMuch).length > 0
   report({ files, globalMessage, fail })
 }
 
