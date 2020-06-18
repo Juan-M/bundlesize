@@ -41,10 +41,8 @@ const get = () => {
     })
     .catch(error => {
       debug('fetching failed', error.response.data)
-      console.log(
-        `💀  Outch! ${error.stack}`,
-        util.inspect(error.response, false, 1, true).replace(tokenRegExp, '{***<token key>***}')
-      )
+      console.log(`💀  Outch! ${url}?repo=${repo}&token={***<token key>***} failed with error: ${error.message}`)
+      debug(error.stack, util.inspect(error.response, false, 1, true).replace(tokenRegExp, '{***<token key>***}'))
     })
 }
 
